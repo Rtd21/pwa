@@ -1,5 +1,6 @@
 Rachmad Taufik Deniarto 
 Faishal Kahfi
 Muhamad Aprijal
+Afwanda Rizqi
 Jose Amalia
 Siti Alifya
