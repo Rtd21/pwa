@@ -1,39 +1,63 @@
-1. Manajemen Proses dan Memori (Low Memory Killer)
-Sistem operasi mobile memiliki sumber daya memori (RAM) yang sangat terbatas. Untuk mencegah sistem crash, OS menggunakan mekanisme yang disebut Low Memory Killer (LMK) atau Out-Of-Memory (OOM) Killer. Saat RAM mulai penuh, sistem operasi akan mengurutkan aplikasi dan proses yang sedang berjalan berdasarkan prioritas kepentingannya, lalu "membunuh" (menghentikan) proses dari prioritas paling rendah untuk membebaskan RAM.
+1. Manajemen Proses dan Memori (Pendalaman LMK & OOM Score)
+Point: LMK sebenarnya tidak hanya mengategorikan aplikasi dalam 3 level, melainkan menggunakan sistem skoring matematis yang sangat granular bernama OOM Adjustment Score (oom_adj_score) di level kernel (inti sistem).
 
-Urutan prioritas dari yang paling aman hingga yang paling pertama dihentikan adalah:
+Reason: Setiap proses yang berjalan diberi nilai skor dinamis oleh OS. Semakin tinggi skornya, semakin besar kemungkinannya untuk "dibunuh" saat RAM penuh. Hierarki prioritas aslinya meliputi:
 
-Foreground (Prioritas Tertinggi): Proses aplikasi yang sedang tampil di layar dan sedang berinteraksi langsung dengan pengguna. OS akan mengalokasikan sumber daya maksimal agar aplikasi ini tidak tertutup tiba-tiba.
+Foreground (Skor terendah/aman mutlak).
 
-Background (Prioritas Menengah): Proses yang berjalan di latar belakang, namun sedang menjalankan tugas krusial yang disadari oleh pengguna. Contohnya: navigasi peta yang sedang menuntun jalan atau pemutar musik yang sedang aktif. Proses ini dilindungi agar layanannya tidak terputus.
+Visible Process (Aplikasi tidak tertutup penuh, misal terhalang keyboard atau pop-up dialog).
 
-Cache / Cached Process (Prioritas Terendah): Aplikasi yang sebelumnya dibuka lalu ditutup atau diminimalkan (masuk Home). Aplikasi ini sengaja dibiarkan "membeku" di RAM agar jika pengguna membukanya kembali, proses loading menjadi lebih cepat. Namun, jika OS membutuhkan memori darurat untuk aplikasi Foreground, proses Cache inilah yang akan "dibunuh" paling pertama.
+Service Process (Latar belakang yang sedang aktif, seperti download file).
 
-2. Komunikasi Antar Proses (Inter-Process Communication / IPC)
-Setiap aplikasi di mobile OS berjalan di dalam "ruang isolasi" masing-masing (disebut Sandboxing) untuk alasan keamanan, sehingga aplikasi A tidak bisa sembarangan membaca data aplikasi B. Agar aplikasi bisa saling berinteraksi, OS menyediakan jalur IPC khusus, salah satunya menggunakan mekanisme Intent. Intent adalah objek pesan yang digunakan untuk meminta tindakan dari komponen lain.
+Cached Process (Tersimpan di RAM tapi diam).
 
-Terdapat dua jenis eksekusi Intent:
+Empty Process (Aplikasi sudah ditutup penuh, tetapi "wadah/cangkang"-nya disisakan di RAM agar besok jika dibuka lagi, loading-nya lebih instan).
 
-Intent Eksplisit (Explicit Intent): Digunakan saat pengembang sudah tahu secara spesifik aplikasi atau komponen mana yang ingin dijalankan. (Misal: Kode di dalam aplikasi menekan tombol untuk membuka halaman ActivityLogin internal milik aplikasi itu sendiri).
+Example: Pemutar musik Spotify di latar belakang masuk ke kategori Service Process. Namun, karena ia menampilkan widget kontrol di bilah notifikasi (Foreground Service Notification), OS memberinya perlakuan khusus dengan menekan skor oom_adj-nya agar setara dengan Foreground. Saat RAM krisis karena Anda membuka game berat, OS akan memenggal proses Empty dan Cached secara berurutan. Spotify akan tetap hidup, kecuali RAM benar-benar sudah habis tanpa sisa.
 
-Intent Implisit (Implicit Intent): Digunakan saat pengembang hanya mendeklarasikan tindakan (aksi) yang ingin dilakukan, tanpa peduli aplikasi apa yang akan mengerjakannya. OS akan mencari dan menawarkan aplikasi yang mendukung aksi tersebut. (Misal: Aplikasi melempar perintah "Baca tag NFC", maka OS akan membangunkan aplikasi apapun di HP tersebut yang memiliki izin dan kemampuan membaca NFC).
+Point: LMK adalah kalkulasi matematis real-time yang memastikan proses yang langsung dilihat dan didengar oleh pengguna akan selalu dilindungi, sementara proses "zombie" dikorbankan.
 
-3. Eksekusi Latar Belakang dan Paradigma Event-Driven
-WorkManager: Ini adalah komponen sistem yang bertugas menangani pekerjaan latar belakang (background tasks) yang sifatnya wajib selesai (guaranteed execution), meskipun pengguna sudah menutup aplikasi atau bahkan jika perangkat baru saja di-restart. Biasanya digunakan untuk sinkronisasi data penting atau mengunggah file ke server.
+2. Komunikasi Antar Proses (Pendalaman Arsitektur Binder & Makelar Data)
+Point: Interaksi antar sandbox aplikasi tidak pernah terjadi secara langsung. OS bertindak sebagai "Makelar" atau perantara mutlak menggunakan arsitektur level bawah (seperti penggerak Binder di Android) dan Intent Filters.
 
-Event-Driven: Sistem operasi mobile menggunakan paradigma pemrograman berbasis kejadian (event). Aplikasi tidak mengeksekusi kode secara terus-menerus (yang akan menguras CPU), melainkan dalam mode "tidur" hingga terjadi sebuah event. Event ini bisa berupa ketukan jari di layar, notifikasi masuk, atau perubahan orientasi HP. Saat event terjadi, barulah aplikasi "bangun" untuk meresponsnya.
+Reason: Membiarkan dua aplikasi berbagi memori (shared memory) adalah mimpi buruk keamanan. Ketika Aplikasi A ingin data dari Aplikasi B, ia tidak bisa "mengetuk pintu" Aplikasi B. Aplikasi A harus mengirim pesan berformat khusus (Intent) ke OS. OS akan memverifikasi hak akses (permissions), dan jika lolos, OS sendirilah yang akan mengekstrak data dari Aplikasi B untuk diserahkan ke Aplikasi A.
 
-4. Keamanan Data (File-Based Encryption / FBE)
-FBE adalah standar enkripsi modern di mobile OS. Alih-alih mengenkripsi seluruh penyimpanan fisik ponsel sebagai satu kesatuan (Full-Disk Encryption), FBE mengenkripsi setiap file secara individu menggunakan kunci (key) yang berbeda-beda.
-Keuntungan utamanya adalah mendukung fitur Direct Boot. Jika HP Anda mati lalu menyala kembali (restart), Anda biasanya belum memasukkan PIN. Berkat FBE, file sistem operasi dasar tetap bisa diakses sehingga HP tetap bisa berdering saat ada panggilan masuk atau alarm berbunyi, sementara file foto, pesan, dan data pribadi Anda tetap terkunci rapat secara kriptografi hingga Anda memasukkan PIN.
+Example: Saat Anda menggunakan fitur "Login with Google" di aplikasi pihak ketiga (misal: Tokopedia). Tokopedia melempar Explicit Intent ke OS. OS membangunkan komponen otentikasi Google. Anda mengetik password di halaman Google (sehingga Tokopedia tidak bisa mengintip tombol yang Anda tekan). Setelah sukses, Google menitipkan "Token Enkripsi" ke OS, lalu OS yang menyerahkan token tersebut kembali ke Tokopedia.
 
-5. Manajemen Baterai dan Optimasi Layanan
-OS mobile sangat ketat dan agresif dalam mengelola daya baterai agar HP bisa bertahan seharian.
+Point: Sistem IPC dengan model makelar (Broker) ini memastikan komponen bisa saling melayani dengan mulus tanpa mengorbankan isolasi keamanan kriptografi dari masing-masing sandbox.
 
-Aplikasi Aktif vs. Pasif: Aplikasi yang berjalan terus-menerus secara "Aktif" (menggunakan Services untuk mengecek lokasi atau data secara konstan) akan menguras baterai dengan cepat.
+3. Eksekusi Latar Belakang (Pendalaman Constraints & Penghapusan AlarmManager)
+Point: WorkManager berevolusi dari penjadwalan berbasis waktu statis (Time-based) menjadi penjadwalan sadar lingkungan (Context-Aware / Constraint-based).
 
-Oleh karena itu, OS modern menerapkan optimasi otomatis seperti fitur Doze Mode atau App Standby. Jika HP diletakkan di meja dengan layar mati selama beberapa waktu, OS akan memaksa aplikasi masuk ke mode "Pasif". Dalam mode ini, akses aplikasi ke CPU dan internet diputus, dan OS hanya akan memberi "jendela waktu" sesekali agar aplikasi bisa melakukan sinkronisasi sejenak sebelum ditidurkan kembali.
+Reason: Di masa lalu, pengembang menggunakan AlarmManager untuk memaksa HP bangun setiap 1 jam untuk mengecek pesan baru. Ini sangat menghancurkan baterai. Di OS modern, pengembang dilarang menggunakan cara itu. Sebagai gantinya, mereka menyerahkan tugas ke WorkManager dengan mendaftarkan "Syarat" (Constraints). OS yang akan memonitor sensor perangkat keras secara pasif dan mengeksekusi tugas hanya jika syarat terpenuhi bersamaan.
 
-6. Antrean Eksekusi dan Batas Waktu Waktu (Timeout / ANR)
-Sistem operasi mengelola berbagai tugas dari berbagai aplikasi menggunakan antrean proses (Task Stack atau Thread Queue). Agar perangkat seluler tetap responsif, sistem memberikan batasan waktu toleransi (timeout) untuk setiap operasi yang berjalan di proses utama (main thread / UI thread).
-Jika sebuah aplikasi melakukan kalkulasi berat atau download file di main thread dan memakan waktu terlalu lama (misalnya membeku lebih dari 10 detik), sistem akan mencegatnya dan menampilkan peringatan Application Not Responding (ANR). Peringatan ini melindungi pengguna dari aplikasi yang hang, memberikan mereka keleluasaan untuk mematikan paksa (force close) aplikasi tersebut.
+Example: Aplikasi Google Photos ingin mencadangkan ribuan foto resolusi tinggi ke server. Pengembang menyetel constraints: NetworkType.UNMETERED (hanya Wi-Fi), RequiresCharging (sedang dicas), dan DeviceIdle (HP tidak sedang dimainkan). OS akan menahan tugas ini berjam-jam. Begitu Anda tidur, menancapkan charger, dan Wi-Fi terhubung, barulah trigger internal OS meledak dan menginstruksikan WorkManager untuk mengunggah semuanya sekaligus.
+
+Point: Integrasi ini mengubah cara aplikasi bekerja: dari yang awalnya agresif menuntut sumber daya, menjadi tunduk pada jadwal kolektif yang ditentukan oleh sistem operasi.
+
+4. Keamanan Data (Pendalaman DE vs CE Storage & TEE)
+Point: File-Based Encryption (FBE) yang sempurna membagi memori HP menjadi dua zona kriptografi: Device Encrypted (DE) dan Credential Encrypted (CE), yang dikunci oleh sirkuit perangkat keras terpisah (seperti Trusted Execution Environment / Secure Enclave).
+
+Reason: Enkripsi DE (Terenkripsi Perangkat) kuncinya dirilis otomatis oleh OS saat HP menyala (boot). Ruang ini hanya berisi file esensial untuk fungsi dasar (kode aplikasi Telepon, Alarm). Sebaliknya, ruang CE (Terenkripsi Kredensial) berisi data pribadi (pesan, foto). Kunci ruang CE ini digembok mati di chip hardware khusus. OS bahkan tidak bisa melihat kuncinya sebelum Anda memasukkan PIN yang benar.
+
+Example: Jika seorang peretas ahli mencuri HP Anda, membongkarnya, dan mencabut chip memorinya untuk dibaca di komputer (Chip-off attack), ia hanya akan melihat lautan kode acak. Tanpa otorisasi chip keamanan fisik yang mengonfirmasi ketukan PIN Anda di layar, data di ruang CE secara matematis mustahil untuk direkonstruksi menjadi foto atau teks.
+
+Point: Keamanan FBE modern adalah pertahanan berlapis (perangkat lunak + perangkat keras) yang mengisolasi data paling rahasia bahkan dari mata sistem operasi itu sendiri ketika perangkat dalam status terkunci.
+
+5. Manajemen Baterai (Pendalaman WakeLocks & Deep Doze)
+Point: OS bertindak ekstrem untuk memperpanjang daya dengan memblokir permintaan WakeLocks secara otomatis dan memaksakan sinkronisasi lewat Deep Doze.
+
+Reason: WakeLock adalah perintah dari aplikasi ke CPU yang berbunyi: "Jangan tidur, saya masih kerja". Dulu, satu aplikasi cacat yang lupa mematikan WakeLock bisa membuat baterai HP habis di dalam saku celana. OS modern kini dengan tegas mengabaikan WakeLock reguler saat masuk Deep Doze. OS menonaktifkan antena GPS, memblokir akses internet semua aplikasi, dan menunda semua tugas latar belakang. Jendela pemeliharaan (maintenance window) pun dibuat eksponensial (awalnya bangun setiap 1 jam sekali, turun menjadi 2 jam sekali, lalu 6 jam sekali jika HP tidak disentuh sama sekali).
+
+Example: Bayangkan ada 5 aplikasi berbeda (Instagram, Twitter, Email, Cuaca, Game) yang ingin mengambil data dari server setiap 5, 8, 12, 15, dan 20 menit. Jika diizinkan, radio seluler HP akan terus menyala. Melalui Doze, OS mencekal mereka semua, membariskan permintaannya, dan memaksa kelimanya untuk mengakses internet secara serentak di menit ke-60 selama tepat 10 detik, lalu memaksa mereka semua tidur kembali.
+
+Point: Pemusatan eksekusi (batching) dan pencekalan WakeLock ini secara radikal menghilangkan "kebisingan" CPU dan radio seluler, menyelamatkan daya tahan baterai secara masif.
+
+6. Timeout & ANR (Pendalaman Main Thread vs Worker Thread)
+Point: Peringatan Application Not Responding (ANR) sangat terikat pada tenggat waktu matematis per-bingkai (frame rendering time) yang wajib dipenuhi oleh aplikasi di Main Thread (Jalur Utama).
+
+Reason: Layar HP modern di-refresh 60 hingga 120 kali per detik. Artinya, sistem operasi hanya mengizinkan Main Thread untuk berpikir dan menggambar piksel selama 8 hingga 16 milidetik per frame. Jika pengembang yang buruk menaruh proses berat (seperti mengambil gambar 5MB dari internet atau memuat database ribuan kontak) di Main Thread, proses tersebut memakan waktu 3000 ms (3 detik). Selama 3 detik itu, siklus 16 milidetik terlewat berkali-kali, menyebabkan antarmuka "membeku" (lag/freeze). Jika pembekuan menembus 5 detik, mekanisme pengawas OS (Watchdog timer) akan membunyikan alarm ANR.
+
+Example: Aplikasi belanja yang dirancang dengan baik akan melempar tugas mengambil foto produk ke Background/Worker Thread (jalur belakang). Di Main Thread, aplikasi cukup menampilkan animasi bundar berputar (animasi ringan yang selesai dalam 5 milidetik). Saat Worker Thread selesai mengunduh foto di jalur belakang, ia mengetuk Main Thread: "Ini fotonya, tolong gambarkan di layar". Layar pun tidak pernah membeku sedetik pun.
+
+Point: Mekanisme ANR bukan sekadar penghukum aplikasi rusak, melainkan standar arsitektur paksa yang mendikte pengembang untuk selalu memisahkan "proses komputasi/jaringan" dari "proses menggambar layar visual".
