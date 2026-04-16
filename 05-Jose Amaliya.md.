@@ -1,0 +1,32 @@
+Isi Papan Kiri
+- CIA RUP: Kemungkinan typo dari "CIA TRIAD" yaitu Confidentiality, Integrity, Availability. Tiga pilar keamanan yang harus dijaga kernel OS.
+- OS - Bikin, Raw, Preview: Tahapan terkait sistem operasi. Bikin berarti membangun OS, Raw berarti akses level rendah ke hardware, Preview berarti mode beta atau pratinjau.
+- Format file pdf, docx, html: Contoh tipe file yang harus bisa ditangani aplikasi lewat API yang disediakan OS.
+- Tujuan - api, user, bugis: Kemungkinan maksudnya tujuan bikin API untuk user, dan bugis itu typo dari debug.
+- Sketsa kotak dengan tulisan WA: Wireframe sederhana aplikasi WhatsApp. Kotak besar = Activity utama, kotak kecil 60% = notifikasi atau widget. Nyambung ke pembahasan siklus proses di papan kanan.
+
+Isi Papan Kanan - Bagian Inti
+- Judul "Alur Proses" → "Prioritas 5 App Mati Dulu": Ini bahas Low Memory Killer Android. Aturan main sistem kalau RAM mau habis.
+- Urutan prioritas proses dari yang paling kuat sampai paling lemah:
+  - Foreground: Aplikasi yang lagi dibuka dan dipakai user sekarang. Prioritas paling tinggi, paling susah di-kill.
+  - Background: Aplikasi jalan di belakang layar. Contohnya ada notifikasi aktif, GPS nyala, atau music player jalan. Makin penting kerjanya, makin aman.
+  - Cache: Aplikasi yang udah ditutup tapi masih disimpen di RAM biar buka lagi cepat. Ini yang pertama dikorbanin kalau RAM kritis.
+    
+- Komunikasi antar proses:
+  - IPC -> Intent: Inter-Process Communication di Android pakai Intent buat kirim data atau perintah antar app.
+  - Work Manager: Komponen Jetpack buat ngejamin tugas background kayak upload atau sinkronisasi tetap jalan sampai selesai.
+  - Event driven di API: API Android kebanyakan nunggu kejadian atau event. Contohnya notif baterai lemah masuk ke app.
+    
+  Contoh kasus Intent:
+  - Explicit -> Buka App lagi: Intent yang udah nyebut nama app tujuan. Contoh klik "Lanjutkan di Shopee" langsung buka Shopee.
+  - Implicit -> Buka NFC -> buka APP: Intent cuma bilang aksinya, nggak nyebut app. Contoh tap kartu e-money, OS baru nanya mau pakai app apa.
+  - TBS itu bisa Sering Jalan: TBS kemungkinan Task Background Service yang sering aktif dan makan resource.
+- Opt Mem - Squizing: Maksudnya Squeezing alias memeras RAM. Strategi optimasi memori dengan ngurangin proses Pasif dan App cache biar proses Aktif tetap lancar.
+- Diagram balok 10s, 10s, 17s: Visualisasi umur *Cached Process*. Android cuma tahan app di cache beberapa detik. Kalau nggak dipakai lagi, langsung dibuang dari RAM.
+
+Kesimpulan Besar dari Papan Ini
+- Ada kasta di dunia aplikasi: Foreground itu raja, Cache itu rakyat yang siap dikorbanin duluan.
+- Semua serba diatur: App nggak bisa jalan seenaknya. Komunikasi wajib lewat Intent, tugas berat lewat WorkManager biar hemat baterai.
+- Sistemnya galak demi kebaikan: Kalau RAM penuh, sistem pilih "bunuh" app cache daripada bikin app yang lagi kamu pakai jadi lag.
+
+Makanya musik bisa mati sendiri pas kamu buka kamera. Sistemnya lagi nurutin aturan prioritas ini.
