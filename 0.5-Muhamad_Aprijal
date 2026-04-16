@@ -1,0 +1,29 @@
+1. Konsep Dasar Mobile OS
+Mobile OS dirancang untuk perangkat dengan resource terbatas, selalu terhubung jaringan, dan hemat daya.
+
+2. Kategori Proses
+- Foreground Process: aplikasi aktif (prioritas tinggi)
+- Background Process: berjalan di belakang
+- Cached Process: disimpan di RAM (prioritas rendah)
+
+3. Inter-Process Communication (IPC)
+Digunakan untuk komunikasi antar aplikasi, contoh: share ke WhatsApp.
+
+4. Workload Manager
+Mengatur penggunaan CPU dan RAM agar sistem tetap stabil.
+
+5. Keamanan Data
+Setiap aplikasi berjalan dalam sandbox dan memerlukan izin (permission).
+
+6. Interaksi Hardware
+Aplikasi mengakses GPS, Wi-Fi, kamera melalui framework.
+
+7. Optimasi Sistem
+- Active apps: prioritas tinggi
+- Passive apps: dibatasi
+
+8. Manajemen Baterai
+Menggunakan teknik seperti Doze Mode dan App Standby untuk efisiensi daya.
+
+Kesimpulan:
+Mobile OS mengatur proses, keamanan, dan resource untuk menjaga performa dan efisiensi perangkat.
